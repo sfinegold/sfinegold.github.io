@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Susan and David's Thanksgiving Epic Road Trip 🚗</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #4a5568 0%, #2d3748 100%);
+            color: #333;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            padding: 2rem;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .header h1 {
+            color: #48bb78;
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .header p {
+            color: #666;
+            font-size: 1.1rem;
+        }
+
+        .stats {
+            display: flex;
+            justify-content: center;
+            gap: 2rem;
+            margin-top: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .stat-box {
+            background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+            color: white;
+            padding: 1rem 2rem;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .stat-box .number {
+            font-size: 2rem;
+            font-weight: bold;
+        }
+
+        .stat-box .label {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+
+        .container {
+            display: flex;
+            height: 600px;
+            gap: 1rem;
+            padding: 1rem;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        #map {
+            flex: 1;
+            border-radius: 10px;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+            z-index: 1;
+        }
+
+        .sidebar {
+            width: 400px;
+            background: white;
+            border-radius: 10px;
+            padding: 1.5rem;
+            overflow-y: auto;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+        }
+
+        .leg {
+            background: #f8f9fa;
+            border-left: 4px solid #48bb78;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .leg:hover {
+            transform: translateX(5px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .leg.active {
+            background: #f0fdf4;
+            border-left-color: #ecc94b;
+        }
+
+        .leg-date {
+            font-weight: bold;
+            color: #48bb78;
+            margin-bottom: 0.5rem;
+        }
+
+        .leg-route {
+            font-size: 1.1rem;
+            margin-bottom: 0.5rem;
+            color: #333;
+        }
+
+        .leg-details {
+            display: flex;
+            gap: 1rem;
+            font-size: 0.9rem;
+            color: #666;
+            margin-bottom: 0.5rem;
+        }
+
+        .leg-hotel {
+            font-size: 0.9rem;
+            color: #38a169;
+            font-style: italic;
+        }
+
+        .stops {
+            margin-top: 0.5rem;
+            padding-top: 0.5rem;
+            border-top: 1px dashed #ddd;
+        }
+
+        .stops-title {
+            font-size: 0.85rem;
+            font-weight: bold;
+            color: #48bb78;
+            margin-bottom: 0.3rem;
+        }
+
+        .stop-item {
+            font-size: 0.85rem;
+            color: #555;
+            margin-left: 1rem;
+            margin-bottom: 0.2rem;
+        }
+
+        .stop-item:before {
+            content: "📍 ";
+        }
+
+        @media (max-width: 1024px) {
+            .container {
+                flex-direction: column;
+                height: auto;
+            }
+
+            .sidebar {
+                width: 100%;
+                max-height: 400px;
+            }
+
+            #map {
+                height: 500px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🚗 Susan and David's Thanksgiving Epic Road Trip</h1>
+        <p>November 19 - December 8, 2025</p>
+        <div class="stats">
+            <div class="stat-box">
+                <div class="number">~2,780</div>
+                <div class="label">Total Miles</div>
+            </div>
+            <div class="stat-box">
+                <div class="number">10</div>
+                <div class="label">Cities</div>
+            </div>
+            <div class="stat-box">
+                <div class="number">~41hrs</div>
+                <div class="label">Drive Time</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div id="map"></div>
+        <div class="sidebar">
+            <div id="route-list"></div>
+        </div>
+    </div>
+
+    <script>
+        const routes = [
+            {
+                date: "Wed Nov 19",
+                from: "Pittsburgh, PA",
+                to: "Ann Arbor, MI",
+                fromCoords: [40.4406, -79.9959],
+                toCoords: [42.2808, -83.7430],
+                miles: 290,
+                hours: 4.5,
+                hotel: "Graduate Hotel",
+                stops: [
+                    "Cleveland - Rock & Roll Hall of Fame",
+                    "Toledo - Tony Packo's Hungarian hot dogs",
+                    "Detroit - Quick detour through Motor City"
+                ]
+            },
+            {
+                date: "Thu Nov 20",
+                from: "Ann Arbor, MI",
+                to: "Cincinnati, OH",
+                fromCoords: [42.2808, -83.7430],
+                toCoords: [39.1031, -84.5120],
+                miles: 260,
+                hours: 4,
+                hotel: "AC by Marriott",
+                stops: [
+                    "Toledo - Toledo Museum of Art (free admission!)",
+                    "Dayton - National Museum of US Air Force"
+                ]
+            },
+            {
+                date: "Fri Nov 21",
+                from: "Cincinnati, OH",
+                to: "Nashville, TN",
+                fromCoords: [39.1031, -84.5120],
+                toCoords: [36.1627, -86.7816],
+                miles: 280,
+                hours: 4.5,
+                hotel: "Virgin Hotel",
+                stops: [
+                    "Louisville - Stop for hot brown sandwich",
+                    "Mammoth Cave National Park - Quick cave tour"
+                ]
+            },
+            {
+                date: "Sat Nov 22",
+                from: "Nashville, TN",
+                to: "Little Rock, AR",
+                fromCoords: [36.1627, -86.7816],
+                toCoords: [34.7465, -92.2896],
+                miles: 330,
+                hours: 5,
+                hotel: "Rosemont B&B",
+                stops: [
+                    "Memphis - Beale Street BBQ pit stop",
+                    "Hot Springs - Historic bathhouses district"
+                ]
+            },
+            {
+                date: "Sun Nov 23",
+                from: "Little Rock, AR",
+                to: "Houston, TX",
+                fromCoords: [34.7465, -92.2896],
+                toCoords: [29.7604, -95.3698],
+                miles: 450,
+                hours: 6.5,
+                hotel: null,
+                stops: [
+                    "Texarkana - State line photo op",
+                    "College Station - Texas A&M campus"
+                ]
+            },
+            {
+                date: "Tue Nov 25",
+                from: "Houston, TX",
+                to: "Galveston, TX",
+                fromCoords: [29.7604, -95.3698],
+                toCoords: [29.3013, -94.7977],
+                miles: 50,
+                hours: 1,
+                hotel: null,
+                stops: [
+                    "Kemah Boardwalk - Seaside dining",
+                    "NASA Space Center - Worth a full day!"
+                ]
+            },
+            {
+                date: "Sat Nov 29",
+                from: "Galveston, TX",
+                to: "Houston, TX",
+                fromCoords: [29.3013, -94.7977],
+                toCoords: [29.7604, -95.3698],
+                miles: 50,
+                hours: 1,
+                hotel: null,
+                stops: []
+            },
+            {
+                date: "Sat Dec 6",
+                from: "Houston, TX",
+                to: "Memphis, TN",
+                fromCoords: [29.7604, -95.3698],
+                toCoords: [35.1495, -90.0490],
+                miles: 570,
+                hours: 8.5,
+                hotel: "Hu Hotel",
+                stops: [
+                    "Shreveport - Cross Creek BBQ",
+                    "Little Rock - Clinton Presidential Library",
+                    "Memphis - Graceland & Sun Studio area"
+                ]
+            },
+            {
+                date: "Sun Dec 7",
+                from: "Memphis, TN",
+                to: "Louisville, KY",
+                fromCoords: [35.1495, -90.0490],
+                toCoords: [38.2527, -85.7585],
+                miles: 380,
+                hours: 5.5,
+                hotel: "21c Museum Hotel",
+                stops: [
+                    "Nashville - Music Row detour",
+                    "Mammoth Cave - Different route option",
+                    "Jim Beam Distillery - Bourbon country!"
+                ]
+            },
+            {
+                date: "Mon Dec 8",
+                from: "Louisville, KY",
+                to: "Pittsburgh, PA",
+                fromCoords: [38.2527, -85.7585],
+                toCoords: [40.4406, -79.9959],
+                miles: 370,
+                hours: 5.5,
+                hotel: "Home Sweet Home! 🏠",
+                stops: [
+                    "Lexington - Horse country scenic drive",
+                    "Columbus - Short North Arts District lunch",
+                    "Morgantown - WV mountain views"
+                ]
+            }
+        ];
+
+        // Initialize map centered on the route (focused on midwest/south)
+        const map = L.map('map').setView([37.5, -88.0], 6);
+
+        // Add tile layer
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        // Custom icons
+        const startIcon = L.divIcon({
+            className: 'custom-marker',
+            html: '<div style="background: #48bb78; color: white; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; border: 3px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.3);">🏁</div>',
+            iconSize: [30, 30]
+        });
+
+        const endIcon = L.divIcon({
+            className: 'custom-marker',
+            html: '<div style="background: #ecc94b; color: white; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 16px; border: 3px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.3);">🏆</div>',
+            iconSize: [30, 30]
+        });
+
+        const cityIcon = L.divIcon({
+            className: 'custom-marker',
+            html: '<div style="background: #718096; color: white; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; border: 2px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.3);">📍</div>',
+            iconSize: [24, 24]
+        });
+
+        let polylines = [];
+
+        // Draw routes and add markers
+        routes.forEach((route, index) => {
+            // Draw polyline
+            const polyline = L.polyline([route.fromCoords, route.toCoords], {
+                color: '#48bb78',
+                weight: 3,
+                opacity: 0.7,
+                className: `route-${index}`
+            }).addTo(map);
+
+            polylines.push(polyline);
+
+            // Add markers
+            const icon = index === 0 ? startIcon : (index === routes.length - 1 ? endIcon : cityIcon);
+            
+            if (index === 0) {
+                L.marker(route.fromCoords, { icon: startIcon }).addTo(map)
+                    .bindPopup(`<b>Start: ${route.from}</b><br>${route.date}`);
+            }
+
+            L.marker(route.toCoords, { icon: index === routes.length - 1 ? endIcon : cityIcon }).addTo(map)
+                .bindPopup(`<b>${route.to}</b><br>${route.date}<br>${route.miles} miles • ${route.hours}hr${route.hotel ? '<br>🏨 ' + route.hotel : ''}`);
+
+            // Create sidebar entry
+            const legDiv = document.createElement('div');
+            legDiv.className = 'leg';
+            legDiv.setAttribute('data-index', index);
+            
+            let stopsHtml = '';
+            if (route.stops && route.stops.length > 0) {
+                stopsHtml = '<div class="stops"><div class="stops-title">Interesting Stops:</div>';
+                route.stops.forEach(stop => {
+                    stopsHtml += `<div class="stop-item">${stop}</div>`;
+                });
+                stopsHtml += '</div>';
+            }
+
+            legDiv.innerHTML = `
+                <div class="leg-date">${route.date}</div>
+                <div class="leg-route">${route.from} → ${route.to}</div>
+                <div class="leg-details">
+                    <span>🛣️ ${route.miles} miles</span>
+                    <span>⏱️ ${route.hours} hours</span>
+                </div>
+                ${route.hotel ? `<div class="leg-hotel">🏨 ${route.hotel}</div>` : ''}
+                ${stopsHtml}
+            `;
+
+            legDiv.addEventListener('click', () => {
+                // Remove active class from all
+                document.querySelectorAll('.leg').forEach(l => l.classList.remove('active'));
+                legDiv.classList.add('active');
+
+                // Highlight the route
+                polylines.forEach((p, i) => {
+                    if (i === index) {
+                        p.setStyle({ color: '#ecc94b', weight: 5, opacity: 1 });
+                    } else {
+                        p.setStyle({ color: '#48bb78', weight: 3, opacity: 0.7 });
+                    }
+                });
+
+                // Zoom to this route
+                map.fitBounds(polyline.getBounds(), { padding: [50, 50] });
+            });
+
+            document.getElementById('route-list').appendChild(legDiv);
+        });
+
+        // Fit map to show all routes
+        const allCoords = routes.flatMap(r => [r.fromCoords, r.toCoords]);
+        const bounds = L.latLngBounds(allCoords);
+        map.fitBounds(bounds, { padding: [50, 50] });
+    </script>
+</body>
+</html>
